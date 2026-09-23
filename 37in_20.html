@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>37-Ball European Roulette - Explosion Edition</title>
+    <style>
+        body {
+            background-color: #0b3d1b;
+            color: #ffffff;
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 10px;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        .top-bar {
+            width: 100%;
+            max-width: 650px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .ai-badge {
+            font-weight: bold;
+            padding: 4px 10px;
+            border-radius: 12px;
+            color: #000;
+            font-size: 13px;
+            animation: flashColors 2.5s infinite linear;
+            box-shadow: 0 0 8px rgba(255,255,255,0.4);
+        }
+
+        @keyframes flashColors {
+            0%, 100% { background-color: #f1c40f; }
+            33%      { background-color: #2ecc71; }
+            66%      { background-color: #3498db; }
+        }
+
+        .visit-counter {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 4px 10px;
+            border-radius: 12px;
+            border: 1px solid #d4af37;
+            font-size: 12px;
+        }
+
+        .controls-top {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        select, .bgm-btn {
+            background: #1e272e;
+            color: #fff;
+            border: 1px solid #d4af37;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        h1 {
+            font-size: clamp(18px, 4vw, 24px);
+            margin: 5px 0 10px 0;
+            text-shadow: 1px 1px 3px #000;
+            text-align: center;
+        }
+
+        #canvas-container {
+            position: relative;
+            width: 100%;
+            max-width: 550px;
+            aspect-ratio: 1 / 1;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            border-radius: 50%;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            border-radius: 50%;
+        }
+
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            max-width: 550px;
+        }
+
+        .spin-button, .reset-button {
+            padding: 12px 28px;
+            font-size: clamp(15px, 3.5vw, 18px);
+            font-weight: bold;
+            color: #fff;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 80%;
+            max-width: 320px;
+        }
+
+        .spin-button {
+            background: linear-gradient(135deg, #d4af37, #aa7c11);
+        }
+
+        .reset-button {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        .spin-button:hover:not(:disabled), .reset-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.5);
+        }
+
+        .spin-button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #status {
+            font-size: 16px;
+            font-weight: bold;
+            min-height: 24px;
+            color: #f1c40f;
+            text-align: center;
+        }
+
+        #gameover-title {
+            font-size: 28px;
+            font-weight: 900;
+            color: #e74c3c;
+            text-shadow: 0 0 10px rgba(231, 76, 60, 0.8), 2px 2px 4px #000;
+            margin: 5px 0;
+            display: none;
+            animation: pulseGameOver 1s infinite alternate;
+        }
+
+        @keyframes pulseGameOver {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.08); }
+        }
+
+        .mascot-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid #2ecc71;
+            border-radius: 15px;
+            padding: 10px 15px;
+            margin-top: 10px;
+            width: 90%;
+            max-width: 520px;
+            box-sizing: border-box;
+        }
+
+        .mascot-avatar {
+            width: 50px;
+            height: 50px;
+            background: #2ecc71;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            flex-shrink: 0;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .mascot-bubble {
+            font-size: 13px;
+            color: #ffffff;
+            line-height: 1.4;
+        }
+
+        .disclaimer-footer {
+            margin-top: 15px;
+            font-size: 11px;
+            color: #bdc3c7;
+            text-align: center;
+            max-width: 550px;
+            line-height: 1.3;
+            opacity: 0.85;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <div class="ai-badge">Made by AI</div>
+        <div class="visit-counter" id="visitCounter">Visits: 1</div>
+        <div class="controls-top">
+            <button class="bgm-btn" id="bgmBtn">🎵 BGM: OFF</button>
+            <select id="langSelect">
+                <option value="ja" selected>日本語</option>
+                <option value="en">English</option>
+                <option value="zh">中文</option>
+                <option value="ko">한국어</option>
+                <option value="it">Italiano</option>
+                <option value="fr">Français</option>
+                <option value="ar">العربية</option>
+                <option value="hi">हिन्दी</option>
+                <option value="ru">Русский</option>
+            </select>
+        </div>
+    </div>
+
+    <h1 id="appTitle">37玉 全マス着地 ヨーロピアンルーレット</h1>
+
+    <div id="canvas-container">
+        <canvas id="roulette" width="600" height="600"></canvas>
+    </div>
+
+    <div class="controls">
+        <div id="gameover-title">GAME OVER</div>
+        <button id="spinBtn" class="spin-button">37個の玉を投球！</button>
+        <button id="resetBtn" class="reset-button" style="display: none;">リセット (初期画面へ)</button>
+        <div id="status">ボタンを押してスタートしてください</div>
+    </div>
+
+    <div class="mascot-container">
+        <div class="mascot-avatar">🟢</div>
+        <div class="mascot-bubble" id="mascotSpeech">なのだ！37個の玉を投球してみるのだ！</div>
+    </div>
+
+    <div class="disclaimer-footer">
+        Please bear in mind that the evaluation is performed by AI, so there may be some shortcomings.
+    </div>
+
+<script>
+// ==========================================
+// 1. Multilingual Translation Dictionary (9 Languages)
+// ==========================================
+const TRANSLATIONS = {
+    ja: {
+        title: "37玉 全マス着地 ヨーロピアンルーレット",
+        spinBtn: "37個の玉を投球！",
+        resetBtn: "リセット (初期画面へ)",
+        statusInit: "ボタンを押してスタートしてください",
+        statusSpinning: "37個の玉とルーレットが回転中...",
+        statusLanded: "全37マスに着地して停止しました（約8秒間待機）...",
+        statusAccelerating: "ゆっくりと再回転開始… 低速→中速→高速へ！",
+        statusExploded: "耐えきれなくなって球をまき散らしました！",
+        statusStopped: "GAME OVER",
+        visitPrefix: "訪問者数: ",
+        mascotGreeting: "なのだ！37個の玉を投球してみるのだ！",
+        mascotSpinning: "ルーレットが回っているのだ！どこに入るか楽しみなのだ！",
+        mascotLanded: "全マスに着地してピタッと止まったのだ！じーっと待つ機能なのだ…！",
+        mascotAccelerating: "あ！また回り始めたのだ！低速…中速…どんどん速くなるのだー！！",
+        mascotExploded: "キャー！耐えきれずに球が飛び散ったのだ！！",
+        mascotStopped: "ゆっくり減速してカチャっと停止したのだ！ゲームオーバーなのだ！",
+        speechLang: "ja-JP"
+    },
+    en: {
+        title: "37-Ball European Roulette",
+        spinBtn: "Spin All 37 Balls!",
+        resetBtn: "Reset Game",
+        statusInit: "Press the button to start",
+        statusSpinning: "37 balls and wheel are spinning...",
+        statusLanded: "All 37 balls landed! Wheel stopped (Waiting ~8s)...",
+        statusAccelerating: "Spinning again... Low -> Mid -> High speed!",
+        statusExploded: "It couldn't hold anymore! Balls scattered!",
+        statusStopped: "GAME OVER",
+        visitPrefix: "Visits: ",
+        mascotGreeting: "Hello! Let's spin all 37 balls together!",
+        mascotSpinning: "Spinning fast! Where will they land?",
+        mascotLanded: "All pockets filled and stopped! Waiting for 8 seconds...",
+        mascotAccelerating: "Oh! Starting to spin again! Faster and faster!!",
+        mascotExploded: "BOOM! The balls scattered everywhere!!",
+        mascotStopped: "Slowed down and stopped nicely! Game Over!",
+        speechLang: "en-US"
+    },
+    zh: {
+        title: "37球全填满 欧式轮盘",
+        spinBtn: "发射37个球！",
+        resetBtn: "重置游戏",
+        statusInit: "请点击按钮开始",
+        statusSpinning: "37个球和轮盘正在旋转...",
+        statusLanded: "37个球已全部落入！轮盘停止（等待约8秒）...",
+        statusAccelerating: "重新旋转… 低速 -> 中速 -> 高速！",
+        statusExploded: "承受不住了！球飞散出去了！",
+        statusStopped: "GAME OVER",
+        visitPrefix: "访问次数: ",
+        mascotGreeting: "你好！让我们一起发射37个球吧！",
+        mascotSpinning: "轮盘正在旋转！好期待落到哪里！",
+        mascotLanded: "所有格子都填满了！静止等待8秒中...",
+        mascotAccelerating: "啊！又开始转动了！越来越快了！！",
+        mascotExploded: "哇！球全部炸飞出来了！！",
+        mascotStopped: "慢慢减速停止了！游戏结束！",
+        speechLang: "zh-CN"
+    },
+    ko: {
+        title: "37구 완착 룰렛",
+        spinBtn: "37개 구슬 투구!",
+        resetBtn: "리셋",
+        statusInit: "버튼을 눌러 시작하세요",
+        statusSpinning: "37개의 구슬과 룰렛이 회전 중...",
+        statusLanded: "모든 칸에 착지 후 정지 (약 8초 대기)...",
+        statusAccelerating: "천천히 재회전… 저속 -> 중속 -> 고속!",
+        statusExploded: "견디지 못하고 구슬이 흩뿌려졌습니다!",
+        statusStopped: "GAME OVER",
+        visitPrefix: "방문자 수: ",
+        mascotGreeting: "안녕하세요! 37개의 구슬을 던져보아요!",
+        mascotSpinning: "룰렛이 돌아가고 있어요! 어디에 들어갈까요?",
+        mascotLanded: "모든 칸이 채워지고 멈췄어요! 8초간 대기중...",
+        mascotAccelerating: "앗! 다시 돌아가기 시작했어요! 점점 빨라져요!!",
+        mascotExploded: "꺄악! 버티지 못하고 구슬이 튀어나갔어요!!",
+        mascotStopped: "천천히 감속하며 멈췄어요! 게임 오버!",
+        speechLang: "ko-KR"
+    },
+    it: {
+        title: "Roulette Europea a 37 Sferine",
+        spinBtn: "Lancia 37 Sferine!",
+        resetBtn: "Ricomincia",
+        statusInit: "Premi il pulsante per iniziare",
+        statusSpinning: "37 sferine e la ruota stanno girando...",
+        statusLanded: "Tutte le 37 sferine sono posizionate! Ruota ferma (Attesa ~8s)...",
+        statusAccelerating: "Ricomincia a girare... Bassa -> Media -> Alta velocità!",
+        statusExploded: "Non ha resistito! Le sferine sono volate via!",
+        statusStopped: "GAME OVER",
+        visitPrefix: "Visite: ",
+        mascotGreeting: "Ciao! Lanciamo insieme tutte le 37 sferine!",
+        mascotSpinning: "La ruota gira velocemente! Dove andranno?",
+        mascotLanded: "Tutti i numeri sono occupati! In attesa per 8 secondi...",
+        mascotAccelerating: "Oh! Ricomincia a girare! Sempre più veloce!!",
+        mascotExploded: "BOOM! Le sferine sono volate ovunque!!",
+        mascotStopped: "Rallenta e si ferma delicatamente! Game Over!",
+        speechLang: "it-IT"
+    },
+    fr: {
+        title: "Roulette Européenne à 37 Billes",
+        spinBtn: "Lancer les 37 billes !",
+        resetBtn: "Réinitialiser",
+        statusInit: "Appuyez sur le bouton pour commencer",
+        statusSpinning: "37 billes et la roulette tournent...",
+        statusLanded: "Les 37 billes sont placées ! Roulette arrêtée (Attente ~8s)...",
+        statusAccelerating: "Redémarrage... Vitesse basse -> moyenne -> haute !",
+        statusExploded: "Elle n'a pas résisté ! Les billes ont explosé !",
+        statusStopped: "GAME OVER",
+        visitPrefix: "Visites : ",
+        mascotGreeting: "Bonjour ! Lançons les 37 billes ensemble !",
+        mascotSpinning: "La roulette tourne ! Où vont-elles tomber ?",
+        mascotLanded: "Toutes les cases sont remplies ! Attente de 8 secondes...",
+        mascotAccelerating: "Oh ! Ça recommence à tourner ! De plus en plus vite !!",
+        mascotExploded: "BOUM ! Les billes se sont dispersées partout !!",
+        mascotStopped: "Ralentissement et arrêt complet ! Game Over !",
+        speechLang: "fr-FR"
+    },
+    ar: {
+        title: "روليت أوروبية بـ 37 كرة",
+        spinBtn: "إطلاق 37 كرة!",
+        resetBtn: "إعادة ضبط",
+        statusInit: "اضغط على الزر للبدء",
+        statusSpinning: "37 كرة والعجلة تدور الان...",
+        statusLanded: "استقرت جميع الكرات الـ 37! توقفت العجلة (انتظار ~8 ثوانٍ)...",
+        statusAccelerating: "بدأت الدوران مجدداً... بطيء -> متوسط -> سريع!",
+        statusExploded: "لم تستطع التحمل! تطايرت الكرات!",
+        statusStopped: "GAME OVER",
+        visitPrefix: "الزيارات: ",
+        mascotGreeting: "مرحباً! لنطلق جميع الكرات الـ 37 معاً!",
+        mascotSpinning: "العجلة تدور بسرعة! أين تستقر الكرات؟",
+        mascotLanded: "امتلأت جميع الخانات وتوقفت! الانتظار لمدة 8 ثوانٍ...",
+        mascotAccelerating: "أوه! بدأت تدور مجدداً! أسرع فأسرع!!",
+        mascotExploded: "يا للروعة! تطايرت الكرات في كل مكان!!",
+        mascotStopped: "تباطأت وتوقفت تماماً! انتهت اللعبة!",
+        speechLang: "ar-SA"
+    },
+    hi: {
+        title: "37 गेंदों वाला यूरोपीय रूले",
+        spinBtn: "37 गेंदें फेंकें!",
+        resetBtn: "रीसेट करें",
+        statusInit: "शुरू करने के लिए बटन दबाएं",
+        statusSpinning: "37 गेंदें और पहिया घूम रहे हैं...",
+        statusLanded: "सभी 37 गेंदें बैठ गई हैं! पहिया रुका हुआ है (~8s प्रतीक्षा)...",
+        statusAccelerating: "फिर से घूमना शुरू... धीमी -> मध्यम -> तेज गति!",
+        statusExploded: "यह सहन नहीं कर सका! गेंदें बिखर गईं!",
+        statusStopped: "GAME OVER",
+        visitPrefix: "विज़िट: ",
+        mascotGreeting: "नमस्ते! आइए एक साथ 37 गेंदें फेंकें!",
+        mascotSpinning: "पहिया तेजी से घूम रहा है! गेंदें कहां गिरेंगी?",
+        mascotLanded: "सभी पॉकेट भर गए और रुक गए! 8 सेकंड की प्रतीक्षा...",
+        mascotAccelerating: "अरे! फिर से घूमना शुरू हो गया! और तेज!!",
+        mascotExploded: "धमाका! गेंदें हर तरफ बिखर गईं!!",
+        mascotStopped: "धीमा हुआ और रुक गया! गेम ओवर!",
+        speechLang: "hi-IN"
+    },
+    ru: {
+        title: "Европейская рулетка на 37 шариков",
+        spinBtn: "Запустить 37 шариков!",
+        resetBtn: "Сброс",
+        statusInit: "Нажмите кнопку, чтобы начать",
+        statusSpinning: "37 шариков и колесо вращаются...",
+        statusLanded: "Все 37 шариков заняли лунки! Колесо остановлено (ожидание ~8 сек)...",
+        statusAccelerating: "Снова вращается... Низкая -> Средняя -> Высокая скорость!",
+        statusExploded: "Разлетелись во все стороны!",
+        statusStopped: "GAME OVER",
+        visitPrefix: "Визиты: ",
+        mascotGreeting: "Привет! Запустим все 37 шариков вместе!",
+        mascotSpinning: "Колесо быстро крутится! Куда они попадут?",
+        mascotLanded: "Все лунки заполнены! Ждем 8 секунд...",
+        mascotAccelerating: "Ого! Снова начинает крутиться! Все быстрее и быстрее!!",
+        mascotExploded: " БАМ! Шарики разлетелись повсюду!!",
+        mascotStopped: "Замедлилось и остановилось! Игра окончена!",
+        speechLang: "ru-RU"
+    }
+};
+
+let currentLang = 'ja';
+
+// ==========================================
+// 2. LocalStorage Visit Counter
+// ==========================================
+let visits = parseInt(localStorage.getItem('roulette_visit_count') || '0', 10) + 1;
+localStorage.setItem('roulette_visit_count', visits.toString());
+
+function updateVisitCountDisplay() {
+    const prefix = TRANSLATIONS[currentLang]?.visitPrefix || TRANSLATIONS['ja'].visitPrefix;
+    document.getElementById('visitCounter').textContent = prefix + visits;
+}
+
+// ==========================================
+// 3. Web Audio API
+// ==========================================
+let audioCtx = null;
+let bgmTimer = null;
+let isBgmOn = false;
+
+const N = {
+    C4: 261.63, D4: 293.66, DS4: 311.13, E4: 329.63, F4: 349.23, FS4: 369.99, G4: 392.00, GS4: 415.30, A4: 440.00, AS4: 466.16, B4: 493.88,
+    C5: 523.25, CS5: 554.37, D5: 587.33, DS5: 622.25, E5: 659.25, F5: 698.46, FS5: 739.99, G5: 783.99, A5: 880.00
+};
+
+const entertainerFullMelody = [
+    [N.D4, 145], [N.DS4, 145], [N.E4, 145], [N.C5, 290],
+    [N.E4, 145], [N.C5, 290], [N.E4, 145], [N.C5, 580]
+];
+
+let melodyIndex = 0;
+
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+}
+
+function toggleBGM() {
+    initAudio();
+    const btn = document.getElementById('bgmBtn');
+    isBgmOn = !isBgmOn;
+
+    if (isBgmOn) {
+        btn.textContent = "🎵 BGM: ON";
+        playEntertainerBGM();
+    } else {
+        btn.textContent = "🎵 BGM: OFF";
+        stopEntertainerBGM();
+    }
+}
+
+function playEntertainerBGM() {
+    if (!audioCtx || !isBgmOn) return;
+
+    try {
+        const item = entertainerFullMelody[melodyIndex];
+        const freq = item[0];
+        const duration = item[1];
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (duration / 1000));
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + (duration / 1000));
+
+        melodyIndex = (melodyIndex + 1) % entertainerFullMelody.length;
+        bgmTimer = setTimeout(playEntertainerBGM, duration);
+    } catch (e) {}
+}
+
+function stopEntertainerBGM() {
+    if (bgmTimer) {
+        clearTimeout(bgmTimer);
+        bgmTimer = null;
+    }
+}
+
+function playClickSFX() {
+    if (!audioCtx) return;
+    try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.05);
+
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.05);
+    } catch (e) {}
+}
+
+function playStopClickSFX() {
+    if (!audioCtx) return;
+    try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.08);
+
+        gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.08);
+    } catch (e) {}
+}
+
+function playExplosionSFX() {
+    if (!audioCtx) return;
+    try {
+        const bufferSize = audioCtx.sampleRate * 0.6;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+
+        noise.connect(gain);
+        gain.connect(audioCtx.destination);
+        noise.start();
+    } catch (e) {}
+}
+
+// ==========================================
+// 4. Mascot Speech
+// ==========================================
+function speakMascotText(text) {
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const speech = new SpeechSynthesisUtterance(text);
+        speech.lang = TRANSLATIONS[currentLang]?.speechLang || 'ja-JP';
+        speech.rate = 1.05;
+        speech.pitch = 1.2;
+        window.speechSynthesis.speak(speech);
+    }
+}
+
+function updateMascotMessage(key) {
+    const msg = TRANSLATIONS[currentLang]?.[key] || TRANSLATIONS['ja'][key];
+    if (msg) {
+        document.getElementById('mascotSpeech').textContent = msg;
+        speakMascotText(msg);
+    }
+}
+
+// ==========================================
+// 5. European Roulette Core Logic & State Machine
+// ==========================================
+const POCKETS = [
+    0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10,
+    5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26
+];
+const RED_NUMBERS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+
+const canvas = document.getElementById('roulette');
+const ctx = canvas.getContext('2d');
+const spinBtn = document.getElementById('spinBtn');
+const resetBtn = document.getElementById('resetBtn');
+const statusDiv = document.getElementById('status');
+const gameoverTitle = document.getElementById('gameover-title');
+const langSelect = document.getElementById('langSelect');
+const bgmBtn = document.getElementById('bgmBtn');
+
+const centerX = canvas.width / 2;
+const centerY = canvas.height / 2;
+const outerRadius = 270;
+const innerRadius = 150;
+const centerRadius = 85;
+const ballTargetRadius = 225;
+const numberRadius = 180;
+const ballRadius = 5.5;
+
+let wheelAngle = 0;
+let wheelSpeed = 0;
+let gameState = 'IDLE'; 
+let phaseTimer = 0;
+let balls = [];
+
+class Ball {
+    constructor(targetIndex, delayFrames) {
+        this.targetIndex = targetIndex;
+        this.delay = delayFrames;
+        this.active = false;
+        
+        this.currentRadius = outerRadius + 15 + Math.random() * 10;
+        this.angle = Math.random() * Math.PI * 2;
+        this.speed = 0.28 + Math.random() * 0.08; 
+        
+        this.state = 'waiting';
+        this.dropProgress = 0;
+        this.playedSound = false;
+
+        this.vx = 0;
+        this.vy = 0;
+    }
+
+    update(currentWheelAngle) {
+        if (this.state === 'exploded') {
+            this.angle += 0.01;
+            this.currentRadius += Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+            this.vx *= 0.98;
+            this.vy *= 0.98;
+            return;
+        }
+
+        if (this.delay > 0) {
+            this.delay--;
+            return;
+        }
+        this.active = true;
+
+        if (this.state === 'waiting') {
+            this.state = 'outer';
+        }
+
+        const pocketAngleWidth = (Math.PI * 2) / 37;
+        const targetAngle = currentWheelAngle + (this.targetIndex + 0.5) * pocketAngleWidth;
+
+        if (this.state === 'outer') {
+            this.angle -= this.speed;
+            this.speed *= 0.9968;
+
+            if (this.speed < 0.012) {
+                this.state = 'dropping';
+            }
+        } 
+        else if (this.state === 'dropping') {
+            this.dropProgress += 0.011;
+
+            const angleDiff = Math.atan2(Math.sin(targetAngle - this.angle), Math.cos(targetAngle - this.angle));
+            this.angle += angleDiff * 0.09;
+
+            this.currentRadius = outerRadius - (outerRadius - ballTargetRadius) * Math.min(1, this.dropProgress);
+
+            if (this.dropProgress >= 1) {
+                this.state = 'locked';
+                if (!this.playedSound) {
+                    playClickSFX();
+                    this.playedSound = true;
+                }
+            }
+        } 
+        else if (this.state === 'locked') {
+            this.angle = targetAngle;
+            this.currentRadius = ballTargetRadius;
+        }
+    }
+
+    explode() {
+        this.state = 'exploded';
+        const speed = 10 + Math.random() * 12;
+        this.vx = Math.cos(this.angle) * speed;
+        this.vy = Math.sin(this.angle) * speed;
+    }
+
+    draw() {
+        if (!this.active) return;
+
+        let bx, by;
+        if (this.state === 'exploded') {
+            bx = centerX + Math.cos(this.angle) * this.currentRadius + this.vx;
+            by = centerY + Math.sin(this.angle) * this.currentRadius + this.vy;
+        } else {
+            bx = centerX + Math.cos(this.angle) * this.currentRadius;
+            by = centerY + Math.sin(this.angle) * this.currentRadius;
+        }
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(bx, by, ballRadius, 0, Math.PI * 2);
+        
+        const grad = ctx.createRadialGradient(bx - 2, by - 2, 1, bx, by, ballRadius);
+        grad.addColorStop(0, '#ffffff');
+        grad.addColorStop(0.5, '#e0e0e0');
+        grad.addColorStop(1, '#888888');
+        
+        ctx.fillStyle = grad;
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 4;
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+function drawWheel() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const numPockets = POCKETS.length;
+    const arcSize = (Math.PI * 2) / numPockets;
+
+    // Outer rim
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, outerRadius + 20, 0, Math.PI * 2);
+    ctx.fillStyle = '#4a2511';
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#d4af37';
+    ctx.stroke();
+    ctx.restore();
+
+    // Pockets
+    for (let i = 0; i < numPockets; i++) {
+        const angle = wheelAngle + i * arcSize;
+        const num = POCKETS[i];
+
+        let color = '#008000';
+        if (RED_NUMBERS.has(num)) {
+            color = '#d00000';
+        } else if (num !== 0) {
+            color = '#111111';
+        }
+
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, outerRadius, angle, angle + arcSize);
+        ctx.arc(centerX, centerY, innerRadius, angle + arcSize, angle, true);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(angle + arcSize / 2);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.fillText(num.toString(), numberRadius, 0);
+        ctx.restore();
+    }
+
+    // Inner green track
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, innerRadius, 0, Math.PI * 2);
+    ctx.fillStyle = '#0b3d1b';
+    ctx.fill();
+
+    // Dividers
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#d4af37';
+    for (let i = 0; i < numPockets; i++) {
+        const angle = wheelAngle + i * arcSize;
+        ctx.beginPath();
+        ctx.moveTo(centerX + Math.cos(angle) * innerRadius, centerY + Math.sin(angle) * innerRadius);
+        ctx.lineTo(centerX + Math.cos(angle) * outerRadius, centerY + Math.sin(angle) * outerRadius);
+        ctx.stroke();
+    }
+
+    // Concentric rings
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, outerRadius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, innerRadius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Metallic hub
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, centerRadius, 0, Math.PI * 2);
+    const centerGrad = ctx.createRadialGradient(centerX, centerY, 10, centerX, centerY, centerRadius);
+    centerGrad.addColorStop(0, '#ffe066');
+    centerGrad.addColorStop(0.7, '#d4af37');
+    centerGrad.addColorStop(1, '#8a640f');
+    ctx.fillStyle = centerGrad;
+    ctx.fill();
+    ctx.strokeStyle = '#5c4100';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+
+    // Draw Balls
+    let lockedCount = 0;
+    balls.forEach(ball => {
+        if (gameState !== 'STOPPED') {
+            ball.update(wheelAngle);
+        }
+        ball.draw();
+        if (ball.state === 'locked') {
+            lockedCount++;
+        }
+    });
+
+    // Handle State Transitions
+    if (gameState === 'SPINNING') {
+        wheelAngle += wheelSpeed;
+        wheelAngle %= Math.PI * 2;
+        wheelSpeed = Math.max(0.003, wheelSpeed * 0.995);
+
+        if (lockedCount === 37) {
+            gameState = 'ALL_LANDED';
+            wheelSpeed = 0;
+            phaseTimer = 0;
+            statusDiv.textContent = TRANSLATIONS[currentLang].statusLanded;
+            updateMascotMessage('mascotLanded');
+        }
+    } 
+    else if (gameState === 'ALL_LANDED') {
+        phaseTimer++;
+
+        if (phaseTimer >= 480) { // 8秒間待機
+            gameState = 'ACCELERATING';
+            phaseTimer = 0;
+            wheelSpeed = 0.005;
+            statusDiv.textContent = TRANSLATIONS[currentLang].statusAccelerating;
+            updateMascotMessage('mascotAccelerating');
+        }
+    } 
+    else if (gameState === 'ACCELERATING') {
+        wheelAngle += wheelSpeed;
+        wheelAngle %= Math.PI * 2;
+        phaseTimer++;
+
+        if (phaseTimer < 180) {
+            wheelSpeed += 0.0003;
+        } else if (phaseTimer < 360) {
+            wheelSpeed += 0.0012;
+        } else {
+            wheelSpeed += 0.0035;
+        }
+
+        if (phaseTimer >= 450 || wheelSpeed > 0.65) { 
+            gameState = 'EXPLODED';
+            phaseTimer = 0;
+            playExplosionSFX();
+            balls.forEach(ball => ball.explode());
+            statusDiv.textContent = TRANSLATIONS[currentLang].statusExploded;
+            updateMascotMessage('mascotExploded');
+        }
+    } 
+    else if (gameState === 'EXPLODED') {
+        wheelAngle += wheelSpeed;
+        wheelAngle %= Math.PI * 2;
+        wheelSpeed *= 0.94;
+
+        if (wheelSpeed < 0.001) {
+            wheelSpeed = 0;
+            gameState = 'STOPPED';
+            playStopClickSFX();
+            statusDiv.textContent = TRANSLATIONS[currentLang].statusStopped;
+            updateMascotMessage('mascotStopped');
+            gameoverTitle.style.display = 'block';
+            resetBtn.style.display = 'block';
+        }
+    }
+
+    if (gameState !== 'IDLE' && gameState !== 'STOPPED') {
+        requestAnimationFrame(drawWheel);
+    }
+}
+
+// ==========================================
+// 6. Interaction Controls
+// ==========================================
+function resetGame() {
+    gameState = 'IDLE';
+    wheelAngle = 0;
+    wheelSpeed = 0;
+    balls = [];
+
+    spinBtn.style.display = 'block';
+    spinBtn.disabled = false; // ボタンの無効化を解除
+    resetBtn.style.display = 'none';
+    gameoverTitle.style.display = 'none';
+
+    statusDiv.textContent = TRANSLATIONS[currentLang].statusInit;
+    updateMascotMessage('mascotGreeting');
+
+    drawWheel();
+}
+
+function updateLanguageUI(langKey) {
+    currentLang = langKey;
+    const t = TRANSLATIONS[currentLang] || TRANSLATIONS['ja'];
+
+    document.getElementById('appTitle').textContent = t.title;
+    spinBtn.textContent = t.spinBtn;
+    resetBtn.textContent = t.resetBtn;
+
+    if (gameState === 'IDLE') {
+        statusDiv.textContent = t.statusInit;
+    } else if (gameState === 'SPINNING') {
+        statusDiv.textContent = t.statusSpinning;
+    } else if (gameState === 'ALL_LANDED') {
+        statusDiv.textContent = t.statusLanded;
+    } else if (gameState === 'ACCELERATING') {
+        statusDiv.textContent = t.statusAccelerating;
+    } else if (gameState === 'EXPLODED') {
+        statusDiv.textContent = t.statusExploded;
+    } else if (gameState === 'STOPPED') {
+        statusDiv.textContent = t.statusStopped;
+    }
+
+    updateVisitCountDisplay();
+}
+
+langSelect.addEventListener('change', (e) => {
+    updateLanguageUI(e.target.value);
+});
+
+bgmBtn.addEventListener('click', () => {
+    toggleBGM();
+});
+
+spinBtn.addEventListener('click', () => {
+    if (gameState !== 'IDLE') return;
+
+    initAudio();
+    gameState = 'SPINNING';
+    spinBtn.disabled = true;
+
+    wheelSpeed = 0.22;
+
+    statusDiv.textContent = TRANSLATIONS[currentLang].statusSpinning;
+    updateMascotMessage('mascotSpinning');
+
+    const targetIndices = Array.from({length: 37}, (_, i) => i);
+    for (let i = targetIndices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [targetIndices[i], targetIndices[j]] = [targetIndices[j], targetIndices[i]];
+    }
+
+    balls = targetIndices.map((targetIdx, i) => {
+        const delayFrames = i * 12;
+        return new Ball(targetIdx, delayFrames);
+    });
+
+    requestAnimationFrame(drawWheel);
+});
+
+resetBtn.addEventListener('click', () => {
+    resetGame();
+});
+
+// 初期表示のセットアップ
+updateLanguageUI('ja');
+resetGame(); // 確実にIDLE状態で初期化
+</script>
+
+</body>
+</html>

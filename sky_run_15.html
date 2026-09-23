@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Target Collector Action</title>
+  <style>
+    /* --- Base Reset & Layout Styles --- */
+    * { box-sizing: border-box; user-select: none; }
+    body {
+      margin: 0;
+      background: #0d1117;
+      color: #f0f6fc;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 10px;
+    }
+    #game-container {
+      position: relative;
+      width: 100%;
+      max-width: 600px;
+      text-align: center;
+    }
+
+    /* --- Made by AI Blinking Animation (Yellow, Green, Blue) --- */
+    .ai-badge {
+      font-weight: 800;
+      font-size: 15px;
+      letter-spacing: 1.5px;
+      margin-bottom: 8px;
+      animation: blinkColors 1.8s infinite ease-in-out;
+    }
+    @keyframes blinkColors {
+      0% { color: #facc15; text-shadow: 0 0 8px #facc15; }
+      33% { color: #22c55e; text-shadow: 0 0 8px #22c55e; }
+      66% { color: #3b82f6; text-shadow: 0 0 8px #3b82f6; }
+      100% { color: #facc15; text-shadow: 0 0 8px #facc15; }
+    }
+
+    /* --- Top Controls Bar (Visit Counter & Language Selector) --- */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 6px 12px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    .visit-counter {
+      color: #8b949e;
+      font-weight: 600;
+    }
+    .lang-select {
+      background: #21262d;
+      color: #f0f6fc;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    /* --- Canvas Game Area --- */
+    canvas {
+      border: 2px solid #30363d;
+      background: #161b22;
+      border-radius: 8px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+      display: block;
+      margin: 8px auto;
+      cursor: pointer;
+      width: 100%;
+      height: auto;
+      touch-action: manipulation;
+    }
+
+    /* --- Button Controls --- */
+    .btn-group {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    button {
+      background: #21262d;
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    button:hover { background: #30363d; color: #fff; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .bgm-btn { background: #1e293b; color: #38bdf8; border-color: #0284c7; }
+
+    /* --- Overlays & Footers --- */
+    #flash-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      border-radius: 8px;
+      opacity: 0;
+      transition: opacity 0.1s ease-out;
+    }
+    #rest-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(13, 17, 23, 0.95);
+      border-radius: 8px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      padding: 20px;
+    }
+    #rest-overlay h2 { color: #f85149; margin-bottom: 10px; }
+    #rest-timer { font-size: 24px; color: #58a6ff; font-weight: bold; }
+
+    .controls-hint {
+      font-size: 12px;
+      color: #8b949e;
+      margin-top: 6px;
+    }
+    .ai-disclaimer {
+      font-size: 11px;
+      color: #6e7681;
+      margin-top: 10px;
+      line-height: 1.4;
+      border-top: 1px solid #21262d;
+      padding-top: 8px;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+  <!-- Made by AI Display -->
+  <div class="ai-badge">✨ Made by AI ✨</div>
+
+  <!-- Top Bar: Visit Counter & Language Selector Dropdown -->
+  <div class="top-bar">
+    <div class="visit-counter" id="visit-counter">訪問回数: 1</div>
+    <select class="lang-select" id="lang-select">
+      <option value="ja" selected>日本語</option>
+      <option value="en">English</option>
+      <option value="zh">中文</option>
+      <option value="ko">한국語</option>
+      <option value="it">Italiano</option>
+      <option value="fr">Français</option>
+      <option value="ar">العربية</option>
+      <option value="hi">हिन्दी</option>
+      <option value="ru">Русский</option>
+    </select>
+  </div>
+
+  <!-- Main Canvas Game Area -->
+  <canvas id="canvas" width="600" height="560"></canvas>
+  <div id="flash-overlay"></div>
+
+  <!-- 15-Minute Rest Screen Overlay -->
+  <div id="rest-overlay">
+    <h2 id="rest-title">少し休もうね！</h2>
+    <p id="rest-desc">15分間のプレイが完了しました。目を休めてリフレッシュしましょう！</p>
+    <div id="rest-timer">再開まで: 15:00</div>
+  </div>
+
+  <!-- Control Buttons -->
+  <div class="btn-group">
+    <button id="btn-start">スタート</button>
+    <button id="btn-stop" disabled>ストップ</button>
+    <button id="btn-pause" disabled>ひとやすみ</button>
+    <button id="btn-resume" disabled>さいかい/button>
+    <button id="btn-reset">リセット</button>
+    <button id="btn-bgm" class="bgm-btn">🎵 BGM: OFF</button>
+  </div>
+  <div class="controls-hint" id="controls-hint">操作: 「←」「→」キーで移動 / 「スペースキー」または画面タップでビーム発射</div>
+
+  <!-- AI Evaluation Disclaimer -->
+  <div class="ai-disclaimer" id="ai-disclaimer">
+    Please bear in mind that the evaluation is performed by AI, so there may be some shortcomings.
+  </div>
+</div>
+
+<script>
+// --- Visit Counter Setup using LocalStorage ---
+let visitCount = localStorage.getItem('target_game_visit_count');
+if (!visitCount) {
+  visitCount = 1;
+} else {
+  visitCount = parseInt(visitCount, 10) + 1;
+}
+localStorage.setItem('target_game_visit_count', visitCount);
+
+// --- Multi-language Dictionary (9 Languages) ---
+const translations = {
+  ja: {
+    visits: "訪問回数: ",
+    start: "スタート",
+    stop: "ストップ",
+    pause: "きゅうけい",
+    resume: "さいかい",
+    reset: "リセット",
+    bgmOn: "🎵 BGM: ON",
+    bgmOff: "🎵 BGM: OFF",
+    hint: "操作: 「←」「→」キーで移動 / 「スペースキー」または画面タップでビーム発射",
+    restTitle: "少し休もうね！",
+    restDesc: "15分間のプレイが完了しました。目を休めてリフレッシュしましょう！",
+    restTimerPrefix: "さいかいまで: ",
+    targetPrompt: "君が狙うのはこれだ！ ➔",
+    score: "スコア: ",
+    speed: "スピード: Lv."
+  },
+  en: {
+    visits: "Visits: ",
+    start: "Start",
+    stop: "Stop",
+    pause: "Pause",
+    resume: "Resume",
+    reset: "Reset",
+    bgmOn: "🎵 BGM: ON",
+    bgmOff: "🎵 BGM: OFF",
+    hint: "Controls: Move with [←][→] / Shoot beam with [Space] or Screen Tap",
+    restTitle: "Take a Rest!",
+    restDesc: "You have played for 15 minutes. Please rest your eyes and refresh!",
+    restTimerPrefix: "Resume in: ",
+    targetPrompt: "Target this shape! ➔",
+    score: "Score: ",
+    speed: "Speed: Lv."
+  },
+  zh: {
+    visits: "访问次数: ",
+    start: "开始",
+    stop: "停止",
+    pause: "暂停",
+    resume: "继续",
+    reset: "重置",
+    bgmOn: "🎵 音乐: 开启",
+    bgmOff: "🎵 音乐: 关闭",
+    hint: "操作: [←][→] 键移动 / [空格] 键或点击屏幕发射",
+    restTitle: "休息一下吧！",
+    restDesc: "您已持续游玩15分钟，请保护视力，休息放松！",
+    restTimerPrefix: "恢复倒计时: ",
+    targetPrompt: "你的目标是这个！ ➔",
+    score: "得分: ",
+    speed: "速度: Lv."
+  },
+  ko: {
+    visits: "방문 횟수: ",
+    start: "시작",
+    stop: "정지",
+    pause: "일시정지",
+    resume: "재개",
+    reset: "리셋",
+    bgmOn: "🎵 BGM: 켜짐",
+    bgmOff: "🎵 BGM: 꺼짐",
+    hint: "조작: [←][→] 이동 / [스페이스] 또는 화면 탭으로 빔 발사",
+    restTitle: "잠시 휴식하세요!",
+    restDesc: "15분간 플레이하셨습니다. 눈을 휴식시켜 주세요!",
+    restTimerPrefix: "재개까지: ",
+    targetPrompt: "목표 타겟! ➔",
+    score: "점수: ",
+    speed: "속도: Lv."
+  },
+  it: {
+    visits: "Visite: ",
+    start: "Avvia",
+    stop: "Stop",
+    pause: "Pausa",
+    resume: "Riprendi",
+    reset: "Reset",
+    bgmOn: "🎵 BGM: ON",
+    bgmOff: "🎵 BGM: OFF",
+    hint: "Controlli: Spostati con [←][→] / Spara con [Spazio] o Tocco",
+    restTitle: "Fai una pausa!",
+    restDesc: "Hai giocato per 15 minuti. Riposa gli occhi!",
+    restTimerPrefix: "Ripresa in: ",
+    targetPrompt: "Colpisci questo target! ➔",
+    score: "Punteggio: ",
+    speed: "Velocità: Lv."
+  },
+  fr: {
+    visits: "Visites: ",
+    start: "Démarrer",
+    stop: "Arrêter",
+    pause: "Pause",
+    resume: "Reprendre",
+    reset: "Réinitialiser",
+    bgmOn: "🎵 BGM: ON",
+    bgmOff: "🎵 BGM: OFF",
+    hint: "Contrôles: Deplacez avec [←][→] / Tirez avec [Espace] ou Tactile",
+    restTitle: "Faites une pause !",
+    restDesc: "Vous avez joué pendant 15 minutes. Reposez vos yeux !",
+    restTimerPrefix: "Reprise dans: ",
+    targetPrompt: "Ciblez ceci ! ➔",
+    score: "Score: ",
+    speed: "Vitesse: Lv."
+  },
+  ar: {
+    visits: "عدد الزيارات: ",
+    start: "بدء",
+    stop: "إيقاف",
+    pause: "إيقاف مؤقت",
+    resume: "استئناف",
+    reset: "إعادة ضبط",
+    bgmOn: "🎵 الموسيقى: تشغيل",
+    bgmOff: "🎵 الموسيقى: إيقاف",
+    hint: "التحكم: تحرك [←][→] / أطلق الشعاع بالضغط على [مسافة] أو اللمس",
+    restTitle: "خذ قسطاً من الراحة!",
+    restDesc: "لقد لعبت لمدة 15 دقيقة. يرجى إراحة عينيك!",
+    restTimerPrefix: "الاستئناف خلال: ",
+    targetPrompt: "هدفكم هو هذا! ➔",
+    score: "النقاط: ",
+    speed: "السرعة: Lv."
+  },
+  hi: {
+    visits: "विज़िट: ",
+    start: "प्रारंभ",
+    stop: "रोकें",
+    pause: "विराम",
+    resume: "पुनः प्रारंभ",
+    reset: "रीसेट",
+    bgmOn: "🎵 BGM: चालू",
+    bgmOff: "🎵 BGM: बंद",
+    hint: "नियंत्रण: [←][→] से बढ़ें / [Space] या स्क्रीन टैप से बीम चलाएँ",
+    restTitle: "थोड़ा विश्राम करें!",
+    restDesc: "आपने 15 मिनट खेल लिया है। कृपया अपनी आँखों को आराम दें!",
+    restTimerPrefix: "पुनः प्रारंभ: ",
+    targetPrompt: "आपका लक्ष्य यह है! ➔",
+    score: "स्कोर: ",
+    speed: "गति: Lv."
+  },
+  ru: {
+    visits: "Визиты: ",
+    start: "Старт",
+    stop: "Стоп",
+    pause: "Пауза",
+    resume: "Продолжить",
+    reset: "Сброс",
+    bgmOn: "🎵 BGM: ВКЛ",
+    bgmOff: "🎵 BGM: ВЫКЛ",
+    hint: "Управление: [←][→] движение / [Пробел] или касание для стрельбы",
+    restTitle: "Сделайте перерыв!",
+    restDesc: "Вы играете уже 15 минут. Дайте глазам отдохнуть!",
+    restTimerPrefix: "Возобновление через: ",
+    targetPrompt: "Ваша цель! ➔",
+    score: "Счет: ",
+    speed: "Скорость: Lv."
+  }
+};
+
+let currentLang = 'ja';
+
+// --- Web Audio Synthesizer (BGM & Sound Effects) ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let bgmEnabled = false;
+let bgmTimer = null;
+let bgmNoteIndex = 0;
+
+// Upbeat gameplay melody notes (Hz)
+const bgmNotesGame = [261.63, 329.63, 392.00, 523.25, 392.00, 329.63, 293.66, 349.23, 440.00, 523.25, 440.00, 349.23];
+// Slow relaxing melody notes for rest mode (Hz)
+const bgmNotesRest = [220.00, 261.63, 329.63, 261.63, 196.00, 246.94, 293.66, 246.94];
+
+function playSound(type) {
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  const now = audioCtx.currentTime;
+  if (type === 'laser') {
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(800, now);
+    osc.frequency.exponentialRampToValueAtTime(200, now + 0.1);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  } else if (type === 'correct') {
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(660, now);
+    osc.frequency.setValueAtTime(880, now + 0.1);
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+    osc.start(now);
+    osc.stop(now + 0.35);
+  } else {
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(150, now);
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+    osc.start(now);
+    osc.stop(now + 0.3);
+  }
+}
+
+function playBGMStep() {
+  if (!bgmEnabled) return;
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+
+  const isRest = (gameState === 'REST_LOCK');
+  const notes = isRest ? bgmNotesRest : bgmNotesGame;
+  const noteFreq = notes[bgmNoteIndex % notes.length];
+  bgmNoteIndex++;
+
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = isRest ? 'sine' : 'triangle';
+  osc.frequency.setValueAtTime(noteFreq, audioCtx.currentTime);
+
+  gain.gain.setValueAtTime(isRest ? 0.05 : 0.08, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (isRest ? 0.6 : 0.22));
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  osc.start(audioCtx.currentTime);
+  osc.stop(audioCtx.currentTime + (isRest ? 0.6 : 0.22));
+}
+
+function startBGM() {
+  if (bgmTimer) clearInterval(bgmTimer);
+  bgmTimer = setInterval(playBGMStep, 250);
+}
+
+function stopBGM() {
+  if (bgmTimer) {
+    clearInterval(bgmTimer);
+    bgmTimer = null;
+  }
+}
+
+// --- Game Variables ---
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+const SHAPES = ['△', '〇', '◇'];
+const COLORS = [
+  { name: '赤', nameEn: 'Red', code: '#f85149' },
+  { name: '青', nameEn: 'Blue', code: '#58a6ff' },
+  { name: '黄', nameEn: 'Yellow', code: '#f2cc60' }
+];
+
+const LANES_X = [150, 300, 450];
+let currentLane = 1;
+
+let gameState = 'STOPPED';
+let score = 0;
+let level = 1;
+let speed = 1.0;
+
+let currentTarget = { shape: '△', color: COLORS[0] };
+let targetSwitchTimer = 0;
+
+let items = [];
+let bullets = [];
+let particles = [];
+
+let playTimeMs = 0;
+let restRemainingMs = 0;
+let lastTimestamp = 0;
+
+// UI Elements
+const btnStart = document.getElementById('btn-start');
+const btnStop = document.getElementById('btn-stop');
+const btnPause = document.getElementById('btn-pause');
+const btnResume = document.getElementById('btn-resume');
+const btnReset = document.getElementById('btn-reset');
+const btnBgm = document.getElementById('btn-bgm');
+const flashOverlay = document.getElementById('flash-overlay');
+const restOverlay = document.getElementById('rest-overlay');
+const restTimerLabel = document.getElementById('rest-timer');
+const langSelect = document.getElementById('lang-select');
+const visitCounterEl = document.getElementById('visit-counter');
+const controlsHintEl = document.getElementById('controls-hint');
+const restTitleEl = document.getElementById('rest-title');
+const restDescEl = document.getElementById('rest-desc');
+
+// Update UI Language Text
+function updateLanguageUI() {
+  const t = translations[currentLang] || translations.ja;
+  visitCounterEl.innerText = t.visits + visitCount;
+  btnStart.innerText = t.start;
+  btnStop.innerText = t.stop;
+  btnPause.innerText = t.pause;
+  btnResume.innerText = t.resume;
+  btnReset.innerText = t.reset;
+  btnBgm.innerText = bgmEnabled ? t.bgmOn : t.bgmOff;
+  controlsHintEl.innerText = t.hint;
+  restTitleEl.innerText = t.restTitle;
+  restDescEl.innerText = t.restDesc;
+}
+
+langSelect.addEventListener('change', (e) => {
+  currentLang = e.target.value;
+  updateLanguageUI();
+});
+
+btnBgm.addEventListener('click', () => {
+  bgmEnabled = !bgmEnabled;
+  if (bgmEnabled) {
+    startBGM();
+  } else {
+    stopBGM();
+  }
+  updateLanguageUI();
+});
+
+// Fire Beam Cannon
+function fireBeam() {
+  if (gameState !== 'RUNNING') return;
+  const playerX = LANES_X[currentLane];
+  const playerY = canvas.height - 40;
+  
+  bullets.push({
+    x: playerX,
+    y: playerY - 20,
+    vy: -14
+  });
+  playSound('laser');
+}
+
+// Keyboard Listeners
+window.addEventListener('keydown', (e) => {
+  if (gameState !== 'RUNNING') return;
+  if (e.key === 'ArrowLeft' && currentLane > 0) currentLane--;
+  if (e.key === 'ArrowRight' && currentLane < 2) currentLane++;
+  if (e.key === ' ' || e.code === 'Space') {
+    e.preventDefault();
+    fireBeam();
+  }
+});
+
+// Pointer / Touch Listener
+canvas.addEventListener('pointerdown', (e) => {
+  if (gameState !== 'RUNNING') return;
+
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const mx = (e.clientX - rect.left) * scaleX;
+
+  if (mx < 225) currentLane = 0;
+  else if (mx > 375) currentLane = 2;
+  else currentLane = 1;
+
+  fireBeam();
+});
+
+function switchTarget() {
+  const randShape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+  const randColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+  currentTarget = { shape: randShape, color: randColor };
+
+  flashOverlay.style.background = currentTarget.color.code;
+  flashOverlay.style.opacity = '0.5';
+  setTimeout(() => { flashOverlay.style.opacity = '0'; }, 200);
+}
+
+function updateSpeed() {
+  let rawLevel = Math.floor(Math.max(0, score) / 500) + 1;
+  level = Math.max(1, Math.min(10, rawLevel));
+  speed = 0.8 + (level - 1) * 0.4;
+}
+
+function spawnItem() {
+  if (gameState !== 'RUNNING') return;
+  
+  const laneIndex = Math.floor(Math.random() * 3);
+  const isTrash = Math.random() < 0.25;
+  let item = {
+    x: LANES_X[laneIndex],
+    y: 70,
+    vy: (1.5 + Math.random() * 1.5) * speed,
+    size: 22,
+    isTrash: isTrash
+  };
+
+  if (isTrash) {
+    item.type = 'TRASH';
+    item.color = '#8b949e';
+  } else {
+    const isMatchingTarget = Math.random() < 0.4;
+    if (isMatchingTarget) {
+      item.shape = currentTarget.shape;
+      item.colorObj = currentTarget.color;
+    } else {
+      do {
+        item.shape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+        item.colorObj = COLORS[Math.floor(Math.random() * COLORS.length)];
+      } while (item.shape === currentTarget.shape && item.colorObj.name === currentTarget.color.name);
+    }
+  }
+
+  items.push(item);
+}
+
+function createExplosion(x, y, color) {
+  particles.push({ x: x - 5, y: y, vx: -2, vy: -1, shape: 'left', color: color, life: 20 });
+  particles.push({ x: x + 5, y: y, vx: 2, vy: -1, shape: 'right', color: color, life: 20 });
+
+  for (let i = 0; i < 6; i++) {
+    particles.push({
+      x: x, y: y,
+      vx: (Math.random() - 0.5) * 6,
+      vy: (Math.random() - 0.5) * 6,
+      shape: 'dot',
+      color: color,
+      life: 15
+    });
+  }
+}
+
+let spawnTimer = 0;
+
+function gameLoop(timestamp) {
+  if (!lastTimestamp) lastTimestamp = timestamp;
+  const delta = timestamp - lastTimestamp;
+  lastTimestamp = timestamp;
+
+  if (gameState === 'RUNNING') {
+    playTimeMs += delta;
+
+    if (playTimeMs >= 15 * 60 * 1000) {
+      triggerRestLock();
+    }
+
+    targetSwitchTimer += delta;
+    if (targetSwitchTimer >= 8000) {
+      targetSwitchTimer = 0;
+      switchTarget();
+    }
+
+    spawnTimer += delta;
+    if (spawnTimer > 1200 / speed) {
+      spawnTimer = 0;
+      spawnItem();
+    }
+
+    // Move Bullets & Check Collision
+    for (let b = bullets.length - 1; b >= 0; b--) {
+      const bullet = bullets[b];
+      bullet.y += bullet.vy;
+
+      if (bullet.y < 60) {
+        bullets.splice(b, 1);
+        continue;
+      }
+
+      for (let i = items.length - 1; i >= 0; i--) {
+        const item = items[i];
+        const dist = Math.hypot(bullet.x - item.x, bullet.y - item.y);
+
+        if (dist < item.size + 12) {
+          if (item.isTrash) {
+            score -= 100;
+            playSound('wrong');
+            createExplosion(item.x, item.y, item.color);
+          } else {
+            const isCorrectShape = (item.shape === currentTarget.shape);
+            const isCorrectColor = (item.colorObj && item.colorObj.name === currentTarget.color.name);
+
+            if (isCorrectShape && isCorrectColor) {
+              score += 100;
+              playSound('correct');
+              createExplosion(item.x, item.y, item.colorObj.code);
+            } else {
+              score -= 100;
+              playSound('wrong');
+              createExplosion(item.x, item.y, item.colorObj ? item.colorObj.code : '#ffffff');
+            }
+          }
+
+          updateSpeed();
+          items.splice(i, 1);
+          bullets.splice(b, 1);
+          break;
+        }
+      }
+    }
+
+    // Update Falling Items
+    for (let i = items.length - 1; i >= 0; i--) {
+      items[i].y += items[i].vy;
+      if (items[i].y > canvas.height + 40) {
+        items.splice(i, 1);
+      }
+    }
+
+    // Update Explosions
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life--;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  } else if (gameState === 'REST_LOCK') {
+    restRemainingMs -= delta;
+    if (restRemainingMs <= 0) {
+      gameState = 'STOPPED';
+      restOverlay.style.display = 'none';
+      updateButtonStates();
+    } else {
+      const min = Math.floor(restRemainingMs / 60000);
+      const sec = Math.floor((restRemainingMs % 60000) / 1000);
+      const t = translations[currentLang] || translations.ja;
+      restTimerLabel.innerText = `${t.restTimerPrefix}${min}:${sec < 10 ? '0' : ''}${sec}`;
+    }
+  }
+
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+// Draw Canvas Frame
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw 3 Lane Lines
+  LANES_X.forEach(x => {
+    ctx.strokeStyle = '#21262d';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 8]);
+    ctx.beginPath();
+    ctx.moveTo(x, 60);
+    ctx.lineTo(x, canvas.height);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // Header UI Bar
+  ctx.fillStyle = '#161b22';
+  ctx.fillRect(0, 0, canvas.width, 60);
+  ctx.strokeStyle = '#30363d';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, 60); ctx.lineTo(canvas.width, 60); ctx.stroke();
+
+  const t = translations[currentLang] || translations.ja;
+  ctx.fillStyle = '#f0f6fc';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(t.targetPrompt, 15, 36);
+
+  drawShape(ctx, currentTarget.shape, 195, 32, 18, currentTarget.color.code);
+  ctx.fillStyle = currentTarget.color.code;
+  ctx.font = 'bold 14px sans-serif';
+  const colorName = currentLang === 'ja' ? currentTarget.color.name : currentTarget.color.nameEn;
+  ctx.fillText(`(${colorName})`, 220, 36);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = score >= 0 ? '#58a6ff' : '#f85149';
+  ctx.fillText(`${t.score}${score}`, canvas.width - 15, 25);
+  ctx.fillStyle = '#8b949e';
+  ctx.font = '12px sans-serif';
+  ctx.fillText(`${t.speed}${level} / 10`, canvas.width - 15, 48);
+
+  // Draw Bullets
+  bullets.forEach(b => {
+    ctx.fillStyle = '#38bdf8';
+    ctx.shadowColor = '#0284c7';
+    ctx.shadowBlur = 8;
+    ctx.fillRect(b.x - 3, b.y - 12, 6, 16);
+    ctx.shadowBlur = 0;
+  });
+
+  // Draw Player Ship
+  const playerX = LANES_X[currentLane];
+  const playerY = canvas.height - 40;
+  
+  // Jet Flame
+  ctx.fillStyle = '#f97316';
+  ctx.beginPath();
+  ctx.moveTo(playerX - 6, playerY + 12);
+  ctx.lineTo(playerX, playerY + 22 + Math.random() * 5);
+  ctx.lineTo(playerX + 6, playerY + 12);
+  ctx.closePath();
+  ctx.fill();
+
+  // Ship Body
+  ctx.fillStyle = '#38bdf8';
+  ctx.beginPath();
+  ctx.moveTo(playerX, playerY - 20);
+  ctx.lineTo(playerX - 18, playerY + 12);
+  ctx.lineTo(playerX, playerY + 6);
+  ctx.lineTo(playerX + 18, playerY + 12);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Draw Items
+  items.forEach(item => {
+    if (item.isTrash) {
+      ctx.fillStyle = item.color;
+      ctx.font = 'bold 22px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🗑️', item.x, item.y + 8);
+    } else {
+      drawShape(ctx, item.shape, item.x, item.y, item.size, item.colorObj.code);
+    }
+  });
+
+  // Draw Particles
+  particles.forEach(p => {
+    ctx.fillStyle = p.color;
+    if (p.shape === 'left') {
+      ctx.fillRect(p.x - 6, p.y - 6, 6, 12);
+    } else if (p.shape === 'right') {
+      ctx.fillRect(p.x, p.y - 6, 6, 12);
+    } else {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+}
+
+function drawShape(context, shape, x, y, size, color) {
+  context.save();
+  context.fillStyle = color;
+  context.strokeStyle = '#ffffff';
+  context.lineWidth = 1.5;
+
+  if (shape === '△') {
+    context.beginPath();
+    context.moveTo(x, y - size);
+    context.lineTo(x - size, y + size);
+    context.lineTo(x + size, y + size);
+    context.closePath();
+    context.fill(); context.stroke();
+  } else if (shape === '〇') {
+    context.beginPath();
+    context.arc(x, y, size, 0, Math.PI * 2);
+    context.fill(); context.stroke();
+  } else if (shape === '◇') {
+    context.beginPath();
+    context.moveTo(x, y - size);
+    context.lineTo(x + size, y);
+    context.lineTo(x, y + size);
+    context.lineTo(x - size, y);
+    context.closePath();
+    context.fill(); context.stroke();
+  }
+  context.restore();
+}
+
+function triggerRestLock() {
+  gameState = 'REST_LOCK';
+  restRemainingMs = 15 * 60 * 1000;
+  restOverlay.style.display = 'flex';
+  updateButtonStates();
+}
+
+function updateButtonStates() {
+  btnStart.disabled = (gameState !== 'STOPPED');
+  btnStop.disabled = (gameState === 'STOPPED' || gameState === 'REST_LOCK');
+  btnPause.disabled = (gameState !== 'RUNNING');
+  btnResume.disabled = (gameState !== 'PAUSED');
+  btnReset.disabled = (gameState === 'REST_LOCK');
+}
+
+btnStart.addEventListener('click', () => {
+  if (gameState === 'STOPPED') {
+    gameState = 'RUNNING';
+    switchTarget();
+    updateButtonStates();
+  }
+});
+
+btnStop.addEventListener('click', () => {
+  gameState = 'STOPPED';
+  items = [];
+  bullets = [];
+  updateButtonStates();
+});
+
+btnPause.addEventListener('click', () => {
+  if (gameState === 'RUNNING') {
+    gameState = 'PAUSED';
+    updateButtonStates();
+  }
+});
+
+btnResume.addEventListener('click', () => {
+  if (gameState === 'PAUSED') {
+    gameState = 'RUNNING';
+    updateButtonStates();
+  }
+});
+
+btnReset.addEventListener('click', () => {
+  score = 0;
+  level = 1;
+  speed = 1.0;
+  playTimeMs = 0;
+  items = [];
+  bullets = [];
+  particles = [];
+  currentLane = 1;
+  gameState = 'STOPPED';
+  updateSpeed();
+  updateButtonStates();
+});
+
+// Initialize
+updateLanguageUI();
+updateButtonStates();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
